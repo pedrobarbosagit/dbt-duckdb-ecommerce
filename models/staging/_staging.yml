@@ -1,0 +1,141 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: Customers with typed, renamed columns. customer_id is per order; customer_unique_id is the person.
+    columns:
+      - name: customer_id
+        description: Key of the order-customer pair.
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Identifies the real person across orders.
+        data_tests: [not_null]
+      - name: zip_code_prefix
+        description: First digits of the customer zip code.
+      - name: city
+        description: City, as typed in the source.
+      - name: state
+        description: Two-letter Brazilian state code.
+        data_tests: [not_null]
+
+  - name: stg_orders
+    description: Orders with typed timestamps. Empty strings become null.
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Points to stg_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: status
+        description: Order lifecycle status.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [delivered, shipped, canceled, unavailable, invoiced, processing, created, approved]
+      - name: purchased_at
+        description: When the customer placed the order.
+        data_tests: [not_null]
+      - name: approved_at
+        description: When payment was approved.
+      - name: delivered_to_carrier_at
+        description: When the order was handed to the carrier.
+      - name: delivered_to_customer_at
+        description: When the customer received the order.
+      - name: estimated_delivery_at
+        description: Delivery date promised at purchase time.
+
+  - name: stg_order_items
+    description: Items of each order, with typed money columns.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, order_item_id]
+    columns:
+      - name: order_id
+        description: Order this item belongs to.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: order_item_id
+        description: Position of the item inside the order (1, 2, 3...).
+        data_tests: [not_null]
+      - name: product_id
+        description: Points to stg_products.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+      - name: seller_id
+        description: Seller that fulfils the item.
+      - name: shipping_limit_at
+        description: Deadline for the seller to hand the item to the carrier.
+      - name: price
+        description: Item price in BRL.
+        data_tests: [not_null]
+      - name: freight_value
+        description: Freight cost allocated to the item in BRL.
+        data_tests: [not_null]
+
+  - name: stg_payments
+    description: Payments of each order. One order can have several (instalments, vouchers).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, payment_sequential]
+    columns:
+      - name: order_id
+        description: Order that was paid.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: payment_sequential
+        description: Position of the payment inside the order.
+        data_tests: [not_null]
+      - name: payment_type
+        description: How it was paid.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [credit_card, boleto, voucher, debit_card, not_defined]
+      - name: installments
+        description: Number of instalments chosen.
+      - name: payment_value
+        description: Amount paid in BRL.
+        data_tests: [not_null]
+
+  - name: stg_products
+    description: Products with typed columns. Some have no category in the source.
+    columns:
+      - name: product_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: category_name
+        description: Category in Portuguese. Can be null.
+      - name: photos_qty
+        description: Number of photos in the listing.
+      - name: weight_g
+        description: Weight in grams.
+
+  - name: stg_product_categories
+    description: Portuguese to English category names.
+    columns:
+      - name: category_name
+        description: Category in Portuguese.
+        data_tests: [unique, not_null]
+      - name: category_name_english
+        description: Category in English.
+        data_tests: [not_null]

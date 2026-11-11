@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: olist
+    description: >
+      Raw Olist Brazilian e-commerce CSVs, read in place by DuckDB (nothing is copied or seeded).
+      The folder is set by the var olist_data_dir. All columns are read as text; staging types them.
+    meta:
+      external_location: "read_csv('{{ var('olist_data_dir') }}/olist_{name}_dataset.csv', all_varchar=true)"
+    tables:
+      - name: customers
+        description: One row per order-customer pair (customer_id is created per order).
+      - name: orders
+        description: One row per order with its status and lifecycle timestamps.
+      - name: order_items
+        description: One row per item of an order (each row is a single unit).
+      - name: order_payments
+        description: One row per payment of an order (an order can be paid in several parts).
+      - name: products
+        description: One row per product.
+      - name: product_category_name_translation
+        description: Portuguese to English category names.
+        meta:
+          external_location: "read_csv('{{ var('olist_data_dir') }}/product_category_name_translation.csv', all_varchar=true)"

@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: int_order_items_agg
+    description: Items collapsed to one row per order. Aggregated BEFORE joining payments to avoid fan-out.
+    columns:
+      - name: order_id
+        description: One row per order that has items.
+        data_tests: [unique, not_null]
+  - name: int_order_payments_agg
+    description: Payments collapsed to one row per order.
+    columns:
+      - name: order_id
+        description: One row per order that has payments.
+        data_tests: [unique, not_null]
+  - name: int_orders_enriched
+    description: One row per order with customer, item totals and payment totals. Orders without items or payments are kept.
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_tests: [unique, not_null]

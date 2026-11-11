@@ -1,0 +1,48 @@
+unit_tests:
+  - name: stg_orders_types_timestamps_and_nulls_empty_strings
+    description: The source is all text. Staging casts timestamps and turns empty strings into null.
+    model: stg_orders
+    given:
+      - input: source('olist', 'orders')
+        rows:
+          - order_id: o1
+            customer_id: c1
+            order_status: delivered
+            order_purchase_timestamp: "2018-01-05 10:00:00"
+            order_approved_at: ""
+            order_delivered_carrier_date: ""
+            order_delivered_customer_date: "2018-01-10 12:30:00"
+            order_estimated_delivery_date: "2018-01-20 00:00:00"
+    expect:
+      rows:
+        - order_id: o1
+          customer_id: c1
+          status: delivered
+          purchased_at: "2018-01-05 10:00:00"
+          approved_at: null
+          delivered_to_carrier_at: null
+          delivered_to_customer_at: "2018-01-10 12:30:00"
+          estimated_delivery_at: "2018-01-20 00:00:00"
+
+  - name: stg_order_items_types_money
+    description: Price and freight arrive as text and leave as decimals.
+    model: stg_order_items
+    given:
+      - input: source('olist', 'order_items')
+        rows:
+          - order_id: o1
+            order_item_id: "1"
+            product_id: p1
+            seller_id: s1
+            shipping_limit_date: "2018-01-08 10:00:00"
+            price: "29.90"
+            freight_value: "7.5"
+    expect:
+      rows:
+        - order_id: o1
+          order_item_id: 1
+          product_id: p1
+          seller_id: s1
+          shipping_limit_at: "2018-01-08 10:00:00"
+          price: 29.90
+          freight_value: 7.50

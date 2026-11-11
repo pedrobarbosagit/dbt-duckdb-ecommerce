@@ -1,0 +1,57 @@
+unit_tests:
+  - name: fct_orders_computes_delivery_days_and_lateness
+    description: A delivered order gets delivery days and a late flag; an order still in transit gets nulls.
+    model: fct_orders
+    given:
+      - input: ref('int_orders_enriched')
+        rows:
+          - order_id: late
+            customer_unique_id: p1
+            status: delivered
+            purchased_at: "2018-01-05 12:00:00"
+            delivered_to_customer_at: "2018-01-10 12:00:00"
+            estimated_delivery_at: "2018-01-08 00:00:00"
+            item_count: 1
+            items_revenue: 10.00
+            freight_total: 1.00
+            paid_amount: 11.00
+          - order_id: transit
+            customer_unique_id: p1
+            status: shipped
+            purchased_at: "2018-01-06 12:00:00"
+            delivered_to_customer_at: null
+            estimated_delivery_at: "2018-01-20 00:00:00"
+            item_count: 1
+            items_revenue: 10.00
+            freight_total: 1.00
+            paid_amount: 11.00
+    expect:
+      rows:
+        - {order_id: late, delivery_days: 5, is_late: true}
+        - {order_id: transit, delivery_days: null, is_late: null}
+
+  - name: mart_daily_revenue_counts_only_delivered_orders
+    description: A canceled order on the same day must not add revenue.
+    model: mart_daily_revenue
+    given:
+      - input: ref('fct_orders')
+        rows:
+          - {order_id: a, status: delivered, purchased_at: "2018-03-01 09:00:00", items_revenue: 100.00, freight_total: 10.00}
+          - {order_id: b, status: delivered, purchased_at: "2018-03-01 15:00:00", items_revenue: 50.00, freight_total: 5.00}
+          - {order_id: c, status: canceled, purchased_at: "2018-03-01 18:00:00", items_revenue: 999.00, freight_total: 99.00}
+    expect:
+      rows:
+        - {order_date: "2018-03-01", orders: 2, revenue: 150.00, freight: 15.00, avg_order_value: 75.00}
+
+  - name: mart_delivery_performance_computes_late_rate
+    description: Two delivered orders in a month, one late, give a 50 percent late rate and the average days.
+    model: mart_delivery_performance
+    given:
+      - input: ref('fct_orders')
+        rows:
+          - {order_id: a, status: delivered, purchased_at: "2018-04-02 09:00:00", delivery_days: 4, is_late: false}
+          - {order_id: b, status: delivered, purchased_at: "2018-04-20 09:00:00", delivery_days: 10, is_late: true}
+          - {order_id: c, status: shipped, purchased_at: "2018-04-25 09:00:00", delivery_days: null, is_late: null}
+    expect:
+      rows:
+        - {order_month: "2018-04-01", delivered_orders: 2, avg_delivery_days: 7.0, late_orders: 1, late_rate: 0.5}

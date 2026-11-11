@@ -1,0 +1,58 @@
+unit_tests:
+  - name: int_order_items_agg_sums_per_order
+    description: Two items of one order collapse into one row with summed price and freight.
+    model: int_order_items_agg
+    given:
+      - input: ref('stg_order_items')
+        rows:
+          - {order_id: o1, order_item_id: 1, price: 10.00, freight_value: 2.00}
+          - {order_id: o1, order_item_id: 2, price: 20.50, freight_value: 3.00}
+          - {order_id: o2, order_item_id: 1, price: 5.00, freight_value: 1.00}
+    expect:
+      rows:
+        - {order_id: o1, item_count: 2, items_revenue: 30.50, freight_total: 5.00}
+        - {order_id: o2, item_count: 1, items_revenue: 5.00, freight_total: 1.00}
+
+  - name: int_orders_enriched_keeps_orders_without_items_or_payments
+    description: >
+      A left join keeps an order that never got items or payments, with zeros instead of nulls.
+      The totals of an order that has both are not multiplied (no fan-out).
+    model: int_orders_enriched
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: o1, customer_id: c1, status: delivered, purchased_at: "2018-01-05 10:00:00"}
+          - {order_id: o2, customer_id: c1, status: canceled, purchased_at: "2018-02-01 10:00:00"}
+      - input: ref('stg_customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: person1, city: sao paulo, state: SP}
+      - input: ref('int_order_items_agg')
+        rows:
+          - {order_id: o1, item_count: 2, items_revenue: 30.50, freight_total: 5.00}
+      - input: ref('int_order_payments_agg')
+        rows:
+          - {order_id: o1, payment_count: 2, paid_amount: 35.50}
+    expect:
+      rows:
+        - order_id: o1
+          customer_unique_id: person1
+          customer_state: SP
+          customer_city: sao paulo
+          status: delivered
+          purchased_at: "2018-01-05 10:00:00"
+          item_count: 2
+          items_revenue: 30.50
+          freight_total: 5.00
+          paid_amount: 35.50
+          payment_count: 2
+        - order_id: o2
+          customer_unique_id: person1
+          customer_state: SP
+          customer_city: sao paulo
+          status: canceled
+          purchased_at: "2018-02-01 10:00:00"
+          item_count: 0
+          items_revenue: 0
+          freight_total: 0
+          paid_amount: 0
+          payment_count: 0

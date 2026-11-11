@@ -1,0 +1,157 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: One row per real person (customer_unique_id) with lifetime metrics.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: customer_unique_id
+        description: The person. Primary key.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+      - name: state
+        description: State of the most recent order.
+        data_type: varchar
+      - name: city
+        description: City of the most recent order.
+        data_type: varchar
+      - name: first_order_at
+        description: First purchase.
+        data_type: timestamp
+      - name: last_order_at
+        description: Latest purchase.
+        data_type: timestamp
+      - name: order_count
+        description: Number of orders ever placed.
+        data_type: bigint
+      - name: lifetime_revenue
+        description: Item revenue in BRL from delivered orders only.
+        data_type: decimal(18,2)
+        data_tests: [not_null]
+
+  - name: dim_products
+    description: One row per product with the English category.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: product_id
+        description: Primary key.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+      - name: category_name
+        description: Category in Portuguese, unknown when missing.
+        data_type: varchar
+      - name: category_name_english
+        description: Category in English, unknown when missing.
+        data_type: varchar
+      - name: weight_g
+        description: Weight in grams.
+        data_type: integer
+
+  - name: fct_orders
+    description: One row per order. Incremental on purchased_at. Revenue is the item prices; freight is kept apart.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Points to dim_customers.
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_unique_id
+      - name: customer_state
+        description: State the order was shipped to.
+        data_type: varchar
+      - name: status
+        description: Order status.
+        data_type: varchar
+      - name: purchased_at
+        description: Purchase timestamp (drives the incremental filter).
+        data_type: timestamp
+      - name: delivered_to_customer_at
+        description: Delivery timestamp, null until delivered.
+        data_type: timestamp
+      - name: estimated_delivery_at
+        description: Promised delivery timestamp.
+        data_type: timestamp
+      - name: item_count
+        description: Number of items (0 for orders that never got items).
+        data_type: bigint
+      - name: items_revenue
+        description: Sum of item prices in BRL.
+        data_type: decimal(18,2)
+      - name: freight_total
+        description: Sum of freight in BRL.
+        data_type: decimal(18,2)
+      - name: paid_amount
+        description: Sum of payments in BRL.
+        data_type: decimal(18,2)
+      - name: delivery_days
+        description: Days between purchase and delivery. Null until delivered.
+        data_type: integer
+      - name: is_late
+        description: True when delivered after the promised date. Null until delivered.
+        data_type: boolean
+
+  - name: mart_daily_revenue
+    description: Revenue per purchase day from delivered orders.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: order_date
+        description: Purchase day. Primary key.
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+      - name: orders
+        description: Delivered orders that day.
+        data_type: bigint
+      - name: revenue
+        description: Item revenue in BRL.
+        data_type: decimal(18,2)
+        data_tests: [not_null]
+      - name: freight
+        description: Freight in BRL.
+        data_type: decimal(18,2)
+      - name: avg_order_value
+        description: Revenue divided by orders.
+        data_type: decimal(18,2)
+
+  - name: mart_delivery_performance
+    description: Monthly delivery speed and late rate, from delivered orders.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: order_month
+        description: First day of the purchase month. Primary key.
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+      - name: delivered_orders
+        description: Delivered orders in the month.
+        data_type: bigint
+      - name: avg_delivery_days
+        description: Average days from purchase to delivery.
+        data_type: decimal(10,1)
+      - name: late_orders
+        description: Orders delivered after the promised date.
+        data_type: bigint
+      - name: late_rate
+        description: late_orders divided by delivered_orders.
+        data_type: decimal(5,4)
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
