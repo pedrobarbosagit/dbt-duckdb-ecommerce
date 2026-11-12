@@ -2,6 +2,9 @@ unit_tests:
   - name: fct_orders_computes_delivery_days_and_lateness
     description: A delivered order gets delivery days and a late flag; an order still in transit gets nulls.
     model: fct_orders
+    overrides:
+      macros:
+        is_incremental: false
     given:
       - input: ref('int_orders_enriched')
         rows:
@@ -29,6 +32,29 @@ unit_tests:
       rows:
         - {order_id: late, delivery_days: 5, is_late: true}
         - {order_id: transit, delivery_days: null, is_late: null}
+
+  - name: fct_orders_incremental_run_skips_old_orders_and_rereads_the_boundary
+    description: >
+      The table already holds orders up to 2018-01-01 09:00. A later run skips anything older,
+      and re-reads the boundary order together with the new ones (delete+insert replaces it).
+    model: fct_orders
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('int_orders_enriched')
+        rows:
+          - {order_id: older, customer_unique_id: p1, status: delivered, purchased_at: "2017-12-01 09:00:00"}
+          - {order_id: boundary, customer_unique_id: p1, status: delivered, purchased_at: "2018-01-01 09:00:00"}
+          - {order_id: new, customer_unique_id: p1, status: delivered, purchased_at: "2018-02-01 09:00:00"}
+      - input: this
+        format: sql
+        rows: |
+          select 'boundary' as order_id, timestamp '2018-01-01 09:00:00' as purchased_at
+    expect:
+      rows:
+        - {order_id: boundary}
+        - {order_id: new}
 
   - name: mart_daily_revenue_counts_only_delivered_orders
     description: A canceled order on the same day must not add revenue.
