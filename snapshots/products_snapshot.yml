@@ -1,0 +1,9 @@
+snapshots:
+  - name: products_snapshot
+    relation: ref('stg_products')
+    description: Keeps the history of a product's category (slowly changing dimension, type 2).
+    config:
+      schema: snapshots
+      unique_key: product_id
+      strategy: check
+      check_cols: [category_name]
