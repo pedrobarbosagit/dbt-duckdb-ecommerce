@@ -34,7 +34,9 @@ jobs:
       # The real Olist data is not in the repository (licence), so CI runs on the small
       # synthetic dataset with the same schema: models, tests, unit tests and snapshot.
       - name: Build and test on the synthetic fixtures
-        run: uv run dbt build --vars '{olist_data_dir: tests/fixtures/olist}'
+        run: |
+          uv run dbt build --vars '{olist_data_dir: tests/fixtures/olist}'
 
       - name: Generate docs
-        run: uv run dbt docs generate --vars '{olist_data_dir: tests/fixtures/olist}'
+        run: |
+          uv run dbt docs generate --vars '{olist_data_dir: tests/fixtures/olist}'
