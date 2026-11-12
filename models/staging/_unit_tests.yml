@@ -4,15 +4,17 @@ unit_tests:
     model: stg_orders
     given:
       - input: source('olist', 'orders')
-        rows:
-          - order_id: o1
-            customer_id: c1
-            order_status: delivered
-            order_purchase_timestamp: "2018-01-05 10:00:00"
-            order_approved_at: ""
-            order_delivered_carrier_date: ""
-            order_delivered_customer_date: "2018-01-10 12:30:00"
-            order_estimated_delivery_date: "2018-01-20 00:00:00"
+        format: sql
+        rows: |
+          select
+            'o1' as order_id,
+            'c1' as customer_id,
+            'delivered' as order_status,
+            '2018-01-05 10:00:00' as order_purchase_timestamp,
+            '' as order_approved_at,
+            '' as order_delivered_carrier_date,
+            '2018-01-10 12:30:00' as order_delivered_customer_date,
+            '2018-01-20 00:00:00' as order_estimated_delivery_date
     expect:
       rows:
         - order_id: o1
@@ -29,14 +31,16 @@ unit_tests:
     model: stg_order_items
     given:
       - input: source('olist', 'order_items')
-        rows:
-          - order_id: o1
-            order_item_id: "1"
-            product_id: p1
-            seller_id: s1
-            shipping_limit_date: "2018-01-08 10:00:00"
-            price: "29.90"
-            freight_value: "7.5"
+        format: sql
+        rows: |
+          select
+            'o1' as order_id,
+            '1' as order_item_id,
+            'p1' as product_id,
+            's1' as seller_id,
+            '2018-01-08 10:00:00' as shipping_limit_date,
+            '29.90' as price,
+            '7.5' as freight_value
     expect:
       rows:
         - order_id: o1
